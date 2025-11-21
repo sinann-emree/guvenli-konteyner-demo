@@ -1,0 +1,51 @@
+name: Guvenli Tedarik Zinciri (CI/CD)
+
+on:
+  push:
+    branches: [ "main" ]
+
+jobs:
+  guvenli-paketleme:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+
+    steps:
+      - name: Kodlari Cek
+        uses: actions/checkout@v4
+
+      - name: Cosign Kur
+        uses: sigstore/cosign-installer@v3.3.0
+
+      - name: Syft Kur
+        uses: anchore/sbom-action/download-syft@v0.15.0
+
+      - name: Minimal Imaj Olustur
+        run: docker build -t ttl.sh/sinan-otomasyon:${{ github.sha }} .
+
+      - name: SBOM Olustur
+        run: syft ttl.sh/sinan-otomasyon:${{ github.sha }} -o spdx-json > sbom.json
+
+      # --- DÜZELTİLEN KISIM BURASI (v4) ---
+      - name: SBOM Dosyasını Yükle
+        uses: actions/upload-artifact@v4
+        with:
+          name: sbom-listesi
+          path: sbom.json
+      # ------------------------------------
+
+      - name: Imaji Gonder (Push)
+        run: docker push ttl.sh/sinan-otomasyon:${{ github.sha }}
+
+      - name: Imaji Imzala (Sign)
+        run: |
+          cosign sign --yes --key env://COSIGN_PRIVATE_KEY ttl.sh/sinan-otomasyon:${{ github.sha }}
+        env:
+          COSIGN_PRIVATE_KEY: ${{ secrets.COSIGN_PRIVATE_KEY }}
+          COSIGN_PASSWORD: ${{ secrets.COSIGN_PASSWORD }}
+
+      - name: Dogrulama Testi (Verify)
+        run: |
+           cosign verify --key cosign.pub ttl.sh/sinan-otomasyon:${{ github.sha }}
