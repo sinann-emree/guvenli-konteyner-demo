@@ -14,13 +14,13 @@ jobs:
 
     steps:
       - name: Kodlari Cek
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Cosign Kur
         uses: sigstore/cosign-installer@v3.3.0
 
       - name: Syft Kur
-        uses: anchore/sbom-action/download-syft@v0
+        uses: anchore/sbom-action/download-syft@v0.15.0
 
       - name: Minimal Imaj Olustur
         run: docker build -t ttl.sh/sinan-otomasyon:${{ github.sha }} .
@@ -28,11 +28,13 @@ jobs:
       - name: SBOM Olustur
         run: syft ttl.sh/sinan-otomasyon:${{ github.sha }} -o spdx-json > sbom.json
 
-      - name: SBOM'u Kaydet
-        uses: actions/upload-artifact@v3
+      # --- DÜZELTİLEN KISIM BURASI (v4) ---
+      - name: SBOM Dosyasını Yükle
+        uses: actions/upload-artifact@v4
         with:
           name: sbom-listesi
           path: sbom.json
+      # ------------------------------------
 
       - name: Imaji Gonder (Push)
         run: docker push ttl.sh/sinan-otomasyon:${{ github.sha }}
